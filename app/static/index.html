@@ -127,11 +127,11 @@ function startPoll() {
 }
 async function refreshSide() {
   const [t, a] = await Promise.all([api("/api/tickets"), api("/api/approvals")]);
-  $("#tickets").innerHTML = t.length ? t.map(x => `<tr><td>${esc(x.id)}</td><td>${esc(x.customer_email || "—")}</td><td>${esc(x.category)}</td>
+  $("#tickets").innerHTML = t.length ? t.map(x => `<tr><td>${esc(x.id)}${(x.summary||"").startsWith("[Sample]") ? ' <span class="tag" title="Seeded sample data">Sample</span>' : ""}</td><td>${esc(x.customer_email || "—")}</td><td>${esc(x.category)}</td>
     <td>${esc(x.urgency)}</td><td class="st-${esc(x.status)}">${esc(x.status)}</td><td>${esc(x.resolution || "")}</td></tr>`).join("")
     : '<tr><td colspan="6" class="empty">No tickets yet.</td></tr>';
   $("#approvals").innerHTML = a.length ? a.map(p => `<div class="approval-card" data-t="${esc(p.thread_id)}">
-    <strong>${esc(p.action)} — $${Number(p.amount).toFixed(2)}</strong> · ${esc(p.ticket_id)}
+    <strong>${esc(p.action)} — $${Number(p.amount).toFixed(2)}</strong> · ${esc(p.ticket_id)}${(p.complaint||"").startsWith("[Sample]") ? ' <span class="tag" title="Seeded sample data">Sample</span>' : ""}
     <dl><dt>Customer</dt><dd>${esc(p.customer ? p.customer.name + " (" + p.customer.tier + ")" : "unknown")}</dd>
     <dt>Order</dt><dd>${esc(p.order_id)}</dd><dt>Urgency</dt><dd>${esc(p.urgency)} / ${esc(p.category)}</dd>
     <dt>Why review</dt><dd>${esc(p.why_approval_needed)}</dd><dt>Agent reason</dt><dd>${esc(p.reason)}</dd></dl>
