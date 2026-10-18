@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Customer Support Resolution Agent</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --b:#d9dde3; --mut:#5b6573; --bg:#f6f7f9; --pri:#1f4e8c; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; color:#1b2330; background:var(--bg); }
+  header { padding:14px 24px; background:#fff; border-bottom:1px solid var(--b); display:flex; justify-content:space-between; align-items:baseline; }
+  header h1 { font-size:17px; margin:0; }
+  header span { color:var(--mut); font-size:12px; }
+  main { display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:16px 24px; max-width:1400px; margin:auto; }
+  section { background:#fff; border:1px solid var(--b); border-radius:6px; padding:14px; }
+  section.wide { grid-column:1 / -1; }
+  h2 { font-size:13px; margin:0 0 10px; text-transform:uppercase; letter-spacing:.04em; color:var(--mut); }
+  #log { height:240px; overflow:auto; border:1px solid var(--b); border-radius:4px; padding:8px; background:#fbfcfd; }
+  .msg { margin:0 0 8px; padding:6px 9px; border-radius:4px; max-width:90%; white-space:pre-wrap; }
+  .user { background:#e8eef7; margin-left:auto; }
+  .bot { background:#eef0f3; }
+  form { display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+  input, textarea, select { font:inherit; padding:7px 9px; border:1px solid var(--b); border-radius:4px; width:100%; }
+  textarea { resize:vertical; min-height:60px; }
+  button { font:inherit; padding:7px 14px; border:1px solid var(--pri); background:var(--pri); color:#fff; border-radius:4px; cursor:pointer; }
+  button.sec { background:#fff; color:var(--pri); }
+  button.rej { background:#fff; color:#a12622; border-color:#a12622; }
+  button:disabled { opacity:.5; cursor:default; }
+  .examples { font-size:12px; color:var(--mut); margin-top:6px; }
+  .examples a { color:var(--pri); cursor:pointer; margin-right:10px; }
+  ol#timeline { list-style:none; margin:0; padding:0; max-height:330px; overflow:auto; }
+  #timeline li { padding:6px 0 6px 12px; border-left:3px solid var(--b); margin-left:4px; }
+  #timeline li small { color:var(--mut); display:block; font-size:11px; }
+  #timeline li.triage { border-color:#7a5ea8; } #timeline li.retrieve { border-color:#2d8a8a; }
+  #timeline li.agent { border-color:var(--pri); } #timeline li.tools { border-color:#c07a1a; }
+  #timeline li.approval { border-color:#a12622; } #timeline li.finalize { border-color:#2e7d32; }
+  .tag { display:inline-block; font-size:11px; padding:1px 6px; border-radius:3px; background:#eef0f3; margin-right:6px; text-transform:uppercase; }
+  .approval-card { border:1px solid #e3b4b2; background:#fff7f6; border-radius:4px; padding:10px; margin-bottom:10px; }
+  .approval-card dl { margin:6px 0; display:grid; grid-template-columns:110px 1fr; gap:2px 8px; }
+  .approval-card dt { color:var(--mut); } .approval-card dd { margin:0; }
+  .approval-card .actions { display:flex; gap:8px; margin-top:8px; }
+  .approval-card input { margin-top:6px; }
+  table { border-collapse:collapse; width:100%; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--b); vertical-align:top; }
+  th { color:var(--mut); font-weight:600; font-size:12px; }
+  .st-resolved { color:#2e7d32; } .st-escalated { color:#b26a00; } .st-pending_approval { color:#a12622; font-weight:600; } .st-refund_rejected { color:#6b6b6b; }
+  .empty { color:var(--mut); }
+  @media (max-width: 900px) {
+    main { grid-template-columns:1fr; padding:12px; gap:12px; }
+    header { padding:12px; flex-direction:column; gap:2px; }
+    #log { height:170px; }
+    table { display:block; overflow-x:auto; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Customer Support Resolution Agent</h1>
+  <span id="cfg">loading…</span>
+</header>
+<main>
+  <section>
+    <h2>Conversation</h2>
+    <div id="log"></div>
+    <form id="form">
+      <input id="email" type="email" placeholder="Customer email (optional, e.g. alice@example.com)">
+      <textarea id="msg" placeholder="Describe the problem…" required></textarea>
+      <div><button id="send" type="submit">Send</button></div>
+    </form>
+    <div class="examples">Try:
+      <a data-e="alice@example.com" data-m="The USB-C cable from ORD-1001 is defective. Please refund $24.99.">small refund</a>
+      <a data-e="alice@example.com" data-m="My headphones from ORD-1002 stopped working after a week. I want a full refund.">large refund</a>
+      <a data-e="ghost@nowhere.com" data-m="I was charged twice for my last order, please fix this.">unknown customer</a>
+      <a data-e="bob@example.com" data-m="Where is my keyboard order ORD-1003? Tracking has not updated.">tracking</a>
+    </div>
+  </section>
+  <section>
+    <h2>Agent steps</h2>
+    <ol id="timeline"><li class="empty">No run yet.</li></ol>
+  </section>
+  <section>
+    <h2>Pending approvals</h2>
+    <div id="approvals"><span class="empty">Nothing waiting for review.</span></div>
+  </section>
+  <section>
+    <h2>Tickets</h2>
+    <table>
+      <thead><tr><th>ID</th><th>Customer</th><th>Category</th><th>Urgency</th><th>Status</th><th>Resolution</th></tr></thead>
+      <tbody id="tickets"></tbody>
+    </table>
+  </section>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let current = null, polling = null, shown = {};
+
+async function api(path, opts) {
+  const r = await fetch(path, opts && {headers:{"Content-Type":"application/json"}, ...opts});
+  if (!r.ok) throw new Error((await r.json().catch(()=>({}))).detail || r.statusText);
+  return r.json();
+}
+function addMsg(cls, text) {
+  const d = document.createElement("div"); d.className = "msg " + cls; d.textContent = text;
+  $("#log").appendChild(d); $("#log").scrollTop = 1e9;
+}
+function renderSteps(steps) {
+  const ol = $("#timeline");
+  if (!steps.length) { ol.innerHTML = '<li class="empty">Waiting…</li>'; return; }
+  ol.innerHTML = steps.map(s => `<li class="${esc(s.node)}"><span class="tag">${esc(s.node)}</span>${esc(s.title)}
+    <small>${new Date(s.ts).toLocaleTimeString()}${s.detail && s.detail.note ? " — " + esc(s.detail.note) : ""}</small></li>`).join("");
+  ol.scrollTop = 1e9;
+}
+function onThread(v) {
+  renderSteps(v.steps);
+  if (v.reply && !shown[v.thread_id]) { shown[v.thread_id] = true; addMsg("bot", v.reply); }
+  if (v.status === "error") { addMsg("bot", "Error: " + v.error); }
+  const live = v.status === "running" || v.status === "awaiting_approval";
+  $("#send").disabled = v.status === "running";
+  if (!live) stopPoll();
+  refreshSide();
+}
+function stopPoll() { if (polling) { clearInterval(polling); polling = null; } $("#send").disabled = false; }
+function startPoll() {
+  stopPoll();
+  polling = setInterval(async () => { try { onThread(await api("/api/threads/" + current)); } catch (e) {} }, 800);
+}
+async function refreshSide() {
+  const [t, a] = await Promise.all([api("/api/tickets"), api("/api/approvals")]);
+  $("#tickets").innerHTML = t.length ? t.map(x => `<tr><td>${esc(x.id)}</td><td>${esc(x.customer_email || "—")}</td><td>${esc(x.category)}</td>
+    <td>${esc(x.urgency)}</td><td class="st-${esc(x.status)}">${esc(x.status)}</td><td>${esc(x.resolution || "")}</td></tr>`).join("")
+    : '<tr><td colspan="6" class="empty">No tickets yet.</td></tr>';
+  $("#approvals").innerHTML = a.length ? a.map(p => `<div class="approval-card" data-t="${esc(p.thread_id)}">
+    <strong>${esc(p.action)} — $${Number(p.amount).toFixed(2)}</strong> · ${esc(p.ticket_id)}
+    <dl><dt>Customer</dt><dd>${esc(p.customer ? p.customer.name + " (" + p.customer.tier + ")" : "unknown")}</dd>
+    <dt>Order</dt><dd>${esc(p.order_id)}</dd><dt>Urgency</dt><dd>${esc(p.urgency)} / ${esc(p.category)}</dd>
+    <dt>Why review</dt><dd>${esc(p.why_approval_needed)}</dd><dt>Agent reason</dt><dd>${esc(p.reason)}</dd></dl>
+    <input placeholder="Note (optional)" class="note">
+    <div class="actions"><button class="ap">Approve</button><button class="rej">Reject</button></div></div>`).join("")
+    : '<span class="empty">Nothing waiting for review.</span>';
+}
+$("#approvals").addEventListener("click", async e => {
+  const card = e.target.closest(".approval-card"); if (!card || e.target.tagName !== "BUTTON") return;
+  const decision = e.target.classList.contains("ap") ? "approve" : "reject";
+  const tid = card.dataset.t; card.querySelectorAll("button").forEach(b => b.disabled = true);
+  try {
+    const body = JSON.stringify({decision, note: card.querySelector(".note").value, wait: false});
+    await api("/api/approvals/" + tid, {method:"POST", body});
+    current = tid; startPoll();
+  } catch (err) { alert(err.message); }
+});
+$("#form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const message = $("#msg").value.trim(); if (!message) return;
+  addMsg("user", message); $("#msg").value = ""; $("#send").disabled = true;
+  try {
+    const v = await api("/api/chat", {method:"POST", body: JSON.stringify({message, customer_email: $("#email").value || null, wait:false})});
+    current = v.thread_id; onThread(v); startPoll();
+  } catch (err) { addMsg("bot", "Error: " + err.message); $("#send").disabled = false; }
+});
+document.querySelectorAll(".examples a").forEach(a => a.onclick = () => { $("#email").value = a.dataset.e; $("#msg").value = a.dataset.m; });
+api("/api/config").then(c => { $("#cfg").textContent = `LLM: ${c.llm} · retrieval: ${c.retrieval} · approval > $${c.refund_approval_threshold}`;
+  if (c.llm_mode === "mock") { const b = document.createElement("span"); b.textContent = "Demo mode (offline mock LLM)"; b.title = "Deterministic mock LLM, no API key";
+    b.style.cssText = "margin-left:12px;padding:3px 10px;border-radius:999px;background:#f59e0b;color:#1f1300;font-size:12px;font-weight:600;vertical-align:middle";
+    document.querySelector("header h1").appendChild(b); } });
+refreshSide(); setInterval(() => { if (!polling) refreshSide(); }, 4000);
+</script>
+</body>
+</html>

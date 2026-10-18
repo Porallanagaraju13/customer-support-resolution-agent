@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: customer-support-resolution-agent
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:create_app --factory --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: LLM_MODE
+        value: mock
+      - key: DATA_DIR
+        value: /tmp/support-data
+      - key: PYTHON_VERSION
+        value: 3.11.9
