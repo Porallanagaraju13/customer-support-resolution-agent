@@ -31,6 +31,7 @@ class Settings:
     mock_delay_s: float = 0.0
     llm_timeout_s: float = 30.0
     llm_temperature: float = 0.0
+    demo_seed: bool = False  # seed sample tickets into an empty DB (see app/seed.py)
 
     @property
     def db_path(self) -> str:
@@ -51,7 +52,9 @@ class Settings:
     @classmethod
     def from_env(cls) -> "Settings":
         e = os.environ.get
+        seed_default = "1" if e("LLM_MODE", "auto").lower() == "mock" else "0"
         return cls(
+            demo_seed=e("DEMO_SEED", seed_default).strip().lower() in ("1", "true", "yes", "on"),
             openai_api_key=e("OPENAI_API_KEY", "") or (e(e("API_KEY_ENV", ""), "") if e("API_KEY_ENV") else ""),
             model=e("MODEL", "gpt-4o-mini"),
             base_url=e("BASE_URL", ""),

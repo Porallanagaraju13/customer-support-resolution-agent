@@ -9,7 +9,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B)](LICENSE)
 [![Demo on Render](https://img.shields.io/badge/demo-Render-46E3B7?logo=render&logoColor=black)](#-demo-mode)
 
-[![Live demo](https://img.shields.io/badge/live%20demo-online-46E3B7?logo=render&logoColor=black)](https://customer-support-resolution-agent-g63p.onrender.com)
+*live demo (coming soon)*
 
 ![Demo animation](docs/fig.gif)
 
@@ -46,6 +46,15 @@ Then open http://localhost:8000 for the web UI, or http://localhost:8000/docs fo
 With no API key the app runs in offline **Demo mode** (deterministic mock LLM, no network). A hosted demo is not
 deployed yet; `render.yaml` is included for deploying one on Render. Free hosting sleeps when idle, so the first load
 would take ~30-60s.
+
+## 🧪 Sample data
+
+The hosted demo is seeded so the tickets table is never empty. At startup, if `DEMO_SEED` is on (default **on** when
+`LLM_MODE=mock`, set `DEMO_SEED=0` to disable) and there are no tickets, six sample tickets are created by running
+the real graph with the mock LLM: a small auto-refund, a large human-approved refund, one **pending approval** (the
+Approve/Reject buttons really work), an escalation (unknown customer), a delivery-delay case and an account issue.
+All are tagged `[Sample]` and use fake `example.com` addresses. Data lives in `DATA_DIR` (`/tmp/support-data` on
+Render), so a restart or redeploy that clears it simply re-seeds. Tests keep seeding off unless they enable it.
 
 ## 🖼️ Screenshots
 

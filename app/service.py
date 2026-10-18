@@ -35,6 +35,9 @@ class SupportService:
         self._inflight: dict[str, Future] = {}
         self._errors: dict[str, str] = {}
         self._lock = threading.Lock()
+        if self.settings.demo_seed:
+            from .seed import seed_demo_data
+            seed_demo_data(self)
 
     # ---- running ----
     def _cfg(self, thread_id: str) -> dict:
