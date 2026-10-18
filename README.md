@@ -9,7 +9,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B)](LICENSE)
 [![Demo on Render](https://img.shields.io/badge/demo-Render-46E3B7?logo=render&logoColor=black)](#-demo-mode)
 
-*live demo (coming soon)*
+[![Live demo](https://img.shields.io/badge/live%20demo-online-46E3B7?logo=render&logoColor=black)](https://customer-support-resolution-agent-g63p.onrender.com)
 
 ![Demo animation](docs/fig.gif)
 
