@@ -1,19 +1,83 @@
-# Customer Support Resolution Agent
+<div align="center">
 
-![Customer Support Resolution Agent](docs/fig.gif)
+![Customer Support Resolution Agent](docs/banner.png)
+
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![LangGraph](https://img.shields.io/badge/LangGraph-multi--agent-8B5CF6)](https://langchain-ai.github.io/langgraph/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Tests](https://img.shields.io/badge/tests-52%20passing-brightgreen)](#-tests)
+[![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B)](LICENSE)
+[![Demo on Render](https://img.shields.io/badge/demo-Render-46E3B7?logo=render&logoColor=black)](#-demo-mode)
+
+*live demo (coming soon)*
+
+![Demo animation](docs/fig.gif)
+
+</div>
 
 A multi-agent customer-support workflow built with **LangGraph**, **FastAPI** and **Pydantic**.
 It triages a complaint, retrieves relevant policy via RAG, resolves it with tool calling (tickets, customer lookup,
 shipping status, refunds, escalation), and **pauses for human approval** on risky actions using LangGraph's
 checkpointed `interrupt()`. It runs fully offline with a deterministic mock LLM, or against any OpenAI-compatible API.
 
-*Author: Nagaraju Poralla*
+## ✨ Features
 
-> **Live demo:** runs in offline **Demo mode** (deterministic mock LLM, no API key). Free hosting sleeps when idle, so the first load can take ~30-60s. See `render.yaml`.
+| | Feature | Details |
+|---|---|---|
+| 🟣 | **Multi-agent graph** | Triage → retrieval → resolution → finalize, built with LangGraph |
+| 🔵 | **Tool calling** | Pydantic-validated tools: tickets, customer lookup, order status, refunds, escalation |
+| 🟢 | **RAG** | Local TF-IDF policy index (no keys); optional OpenAI embeddings |
+| 🟠 | **Human-in-the-loop** | Refunds over $50 or high urgency pause via `interrupt()`; state survives restarts (SQLite checkpointer) |
+| 🔴 | **Reliable** | Retries with backoff, timeouts, idempotent refunds, graceful LLM-outage fallback |
+| 🟡 | **Runs anywhere** | Offline mock LLM by default; OpenAI-compatible APIs incl. Gemini |
 
-![pending approval](docs/ui_pending_approval.png)
+## 🚀 Quick start
 
-## Architecture
+```bash
+cd support-agent
+./run.sh test      # creates .venv, installs deps, runs pytest
+./run.sh           # starts the server on http://localhost:8000
+```
+
+Then open http://localhost:8000 for the web UI, or http://localhost:8000/docs for the OpenAPI docs.
+
+## 🎬 Demo mode
+
+With no API key the app runs in offline **Demo mode** (deterministic mock LLM, no network). A hosted demo is not
+deployed yet; `render.yaml` is included for deploying one on Render. Free hosting sleeps when idle, so the first load
+would take ~30-60s.
+
+## 🖼️ Screenshots
+
+| Pending approval | Resolved |
+|---|---|
+| ![pending approval](docs/ui_pending_approval.png) | ![resolved](docs/ui_resolved.png) |
+
+## 🏗️ Architecture
+
+```mermaid
+flowchart LR
+    U([💬 Customer complaint]):::io --> T[🏷️ triage]:::triage
+    T --> R[📚 retrieve<br/>RAG over policy]:::rag
+    R --> A[🤖 agent<br/>LLM + tool calling]:::agent
+    A -->|tool calls| D{Refund &gt; $50<br/>or high urgency?}:::gate
+    D -->|no| X[🛠️ tools]:::tools
+    D -->|yes| H[[🙋 approval<br/>interrupt]]:::human
+    H -->|approve / reject| X
+    X --> A
+    A -->|final answer| F[✅ finalize]:::done
+
+    classDef io fill:#e0e7ff,stroke:#4f46e5,color:#1e1b4b
+    classDef triage fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef rag fill:#cffafe,stroke:#0891b2,color:#164e63
+    classDef agent fill:#ede9fe,stroke:#7c3aed,color:#3b0764
+    classDef gate fill:#ffedd5,stroke:#ea580c,color:#7c2d12
+    classDef tools fill:#dcfce7,stroke:#16a34a,color:#14532d
+    classDef human fill:#fce7f3,stroke:#db2777,color:#831843
+    classDef done fill:#d1fae5,stroke:#059669,color:#064e3b
+```
+
+Full component view:
 
 ```mermaid
 flowchart LR
@@ -49,7 +113,7 @@ flowchart LR
 retries/backoff/timeouts (`ORD-1006` fails twice then recovers; `ORD-1007` is permanently down and triggers a graceful escalation) -
 idempotent refunds and refundable-balance check (defense in depth even after approval) - JSON structured logs to stderr - graceful fallback messages.
 
-## Setup
+## ⚙️ Setup
 
 ```bash
 cd support-agent
@@ -60,7 +124,7 @@ Manual: `python3 -m venv .venv && . .venv/bin/activate && pip install -r require
 
 Docker: `docker build -t support-agent . && docker run -p 8000:8000 -v support-data:/data --env-file .env support-agent`
 
-### Configuration (`.env`, see `.env.example`)
+### 🔧 Configuration (`.env`, see `.env.example`)
 | Var | Default | Meaning |
 |---|---|---|
 | `OPENAI_API_KEY` | _empty_ | Empty means **mock mode** (no network). |
@@ -73,7 +137,7 @@ Docker: `docker build -t support-agent . && docker run -p 8000:8000 -v support-d
 | `TOOL_TIMEOUT_S`, `TOOL_MAX_RETRIES`, `TOOL_BACKOFF_BASE_S` | `5`, `3`, `0.2` | Tool resilience. |
 | `MOCK_DELAY_S` | `0` | Slows the mock so the UI timeline visibly animates (e.g. `0.7`). |
 
-## Using Gemini
+## 🔮 Using Gemini
 
 Gemini works through Google's OpenAI-compatible endpoint, so no new client code is needed. Keep the key in your
 shell environment; `API_KEY_ENV` tells the app which variable to read, so the key never goes into `.env` or a file.
@@ -109,7 +173,7 @@ What we had to fix to make it work:
 - Triage is non-deterministic on a real model. For example, `gemini-2.5-flash` once labelled the $189 headphones case
   `high` urgency. The approval gate still worked as designed. Set `LLM_TEMPERATURE` if you want to tune this.
 
-## API
+## 🔌 API
 
 | Method & path | Description |
 |---|---|
@@ -124,7 +188,7 @@ What we had to fix to make it work:
 Seed data: customers `alice@` (gold), `bob@`, `carol@`, `dan@example.com`; orders `ORD-1001` ... `ORD-1007`
 (cable $24.99, headphones $189, keyboard in transit, lamp 12 days late, espresso machine delivered 90 days ago, flaky/down shipping demos).
 
-## Example conversations
+## 💬 Example conversations
 
 **1. Small refund auto-resolves** - alice@example.com: *"The USB-C cable from ORD-1001 is defective. Please refund $24.99."*
 triage `product_defect/medium` -> retrieval -> register_complaint, get_customer -> get_order_status -> issue_refund ($24.99 <= $50) -> *"I've issued a refund of $24.99 ... (RF-0001)"*; ticket `resolved`.
@@ -137,17 +201,33 @@ triage `product_defect/medium` -> retrieval -> register_complaint, get_customer 
 Other flows covered by tests: high-urgency refunds need approval even when small, late delivery refunds, out-of-window defects escalate to warranty, in-transit orders just get a status, account-security escalation, shipping retry/outage, LLM outage fallback.
 A full recorded curl run is produced by `scripts/demo.sh` (needs `jq`).
 
-## Tests
+## 🧪 Tests
 
 `./run.sh test` - 52 tests: triage, retrieval, tools (validation, retry, timeout, idempotency), approval interrupt (pause, approve, reject, restart persistence, double-decide), end-to-end flows and API, and the OpenAI provider against a fake client (including the Gemini thought-signature round trip). All run offline in mock mode.
 
-## What is mocked vs real
+## 🎭 What is mocked vs real
+
 - **Real:** LangGraph graph, SQLite checkpointer + interrupt/resume, FastAPI, SQLite data, Pydantic validation, retry/backoff/timeouts, TF-IDF retrieval, structured logging, OpenAI-compatible client code.
 - **Mock:** the carrier/shipping API (`MockShippingAPI`), the refund "payment" (a DB row, no payment gateway), seeded customers, and the rule-based `MockLLM` used when no key is set. The OpenAI path is unit-tested against a fake client; run it against a real endpoint by setting the env vars.
 
-## Extending
+## 🧩 Extending
+
 - **New tool:** add an args model + handler in `app/tools.py` (`TOOL_SPECS`, `handlers`); the JSON schema for the LLM is generated automatically. Add it to `GATED_TOOLS` if it needs approval.
 - **New policy docs:** drop a Markdown file with `##` sections into `app/kb/`.
 - **Different approval rules:** edit `approval_reason()` in `app/tools.py`.
 - **New agent/node:** add a node in `app/graph.py::build_graph` and wire edges.
 - **Production hardening:** swap SQLite for Postgres (`langgraph-checkpoint-postgres`), real carrier/payment APIs, auth on approval endpoints, a vector DB (Chroma/pgvector), SSE instead of polling.
+
+## 🗺️ Roadmap
+
+- [ ] Deploy the public demo on Render
+- [ ] Postgres checkpointer (`langgraph-checkpoint-postgres`)
+- [ ] Real carrier and payment integrations
+- [ ] Auth on approval endpoints
+- [ ] Vector DB (Chroma/pgvector) and SSE instead of polling
+
+## 👤 Author
+
+**Nagaraju Poralla** · [aiengineer.help](https://aiengineer.help)
+
+Licensed under the [MIT License](LICENSE).
